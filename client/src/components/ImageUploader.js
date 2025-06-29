@@ -32,7 +32,7 @@ const ImageUploader = () => {
       const formData = new FormData();
       formData.append('image', file);
 
-      const response = await axios.post('http://localhost:5000/api/upload', formData, {
+      const response = await axios.post('http://localhost:3000/api/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -90,19 +90,19 @@ const ImageUploader = () => {
           <div className="url-container">
             <input 
               type="text" 
-              value={`http://localhost:5000${uploadedImage.imageUrl}`}
+              value={`http://localhost:3000${uploadedImage.imageUrl}`}
               readOnly
               className="url-input"
             />
             <button
-              onClick={() => navigator.clipboard.writeText(`http://localhost:5000${uploadedImage.imageUrl}`)}
+              onClick={() => navigator.clipboard.writeText(`http://localhost:3000${uploadedImage.imageUrl}`)}
               className="copy-button"
             >
               Copy
             </button>
           </div>
           <img 
-            src={`http://localhost:5000${uploadedImage.imageUrl}`} 
+            src={`http://localhost:3000${uploadedImage.imageUrl}`} 
             alt="Uploaded" 
             className="uploaded-image"
           />
