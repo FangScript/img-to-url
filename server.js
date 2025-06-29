@@ -14,14 +14,21 @@ const MONGODB_URI = process.env.MONGODB || 'mongodb+srv://fangscript:shani1319@c
 
 // Middleware
 app.use(cors({
-  origin: '*', // Allow all origins for development, restrict in production
-  methods: ['GET', 'POST'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept', 'X-Requested-With']
 }));
 app.use(express.json());
 
 // Serve static files from the React app
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+  setHeaders: (res, path) => {
+    if (path.endsWith('.json')) {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Content-Type', 'application/json');
+    }
+  }
+}));
 
 // Connect to MongoDB
 mongoose.connect(MONGODB_URI, {
