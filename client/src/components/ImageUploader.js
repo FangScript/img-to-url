@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import './ImageUploader.css';
 
+// Use Vercel deployment URL instead of localhost
+const API_URL = 'https://url-to-image-qvplv45ls-fangscripts-projects.vercel.app';
+
 const ImageUploader = () => {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -32,7 +35,7 @@ const ImageUploader = () => {
       const formData = new FormData();
       formData.append('image', file);
 
-      const response = await axios.post('http://localhost:3000/api/upload', formData, {
+      const response = await axios.post(`${API_URL}/api/upload`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -90,19 +93,19 @@ const ImageUploader = () => {
           <div className="url-container">
             <input 
               type="text" 
-              value={`http://localhost:3000${uploadedImage.imageUrl}`}
+              value={`${API_URL}${uploadedImage.imageUrl}`}
               readOnly
               className="url-input"
             />
             <button
-              onClick={() => navigator.clipboard.writeText(`http://localhost:3000${uploadedImage.imageUrl}`)}
+              onClick={() => navigator.clipboard.writeText(`${API_URL}${uploadedImage.imageUrl}`)}
               className="copy-button"
             >
               Copy
             </button>
           </div>
           <img 
-            src={`http://localhost:3000${uploadedImage.imageUrl}`} 
+            src={`${API_URL}${uploadedImage.imageUrl}`} 
             alt="Uploaded" 
             className="uploaded-image"
           />
