@@ -13,13 +13,23 @@ const ensureConnection = async (req, res, next) => {
       await mongoose.connect(MONGODB_URI, {
         useNewUrlParser: true,
         useUnifiedTopology: true,
-        serverSelectionTimeoutMS: 15000
+        serverSelectionTimeoutMS: 30000,
+        socketTimeoutMS: 45000,
+        family: 4,
+        maxPoolSize: 10,
+        connectTimeoutMS: 30000,
+        retryWrites: true
       });
       console.log('MongoDB connection established in middleware');
       next();
     } catch (error) {
       console.error('Error connecting to MongoDB in middleware:', error);
-      return res.status(500).json({ message: 'Database connection error' });
+      console.error('Connection error details:', JSON.stringify(error, null, 2));
+      // Return a user-friendly error response
+      return res.status(500).json({ 
+        message: 'Database connection error',
+        details: 'The server encountered an issue connecting to the database. Please try again later.'
+      });
     }
   } else {
     next();
@@ -35,11 +45,19 @@ const upload = multer({
   }
 });
 
-// Upload route
+// Upload route with additional error handling
 router.post('/api/upload', ensureConnection, upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    // Check database connection again
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(500).json({ 
+        message: 'Database connection not ready',
+        details: 'Please try again in a moment'
+      });
     }
 
     const newImage = new Image({
@@ -62,7 +80,10 @@ router.post('/api/upload', ensureConnection, upload.single('image'), async (req,
     });
   } catch (error) {
     console.error('Error uploading image:', error);
-    return res.status(500).json({ message: 'Server error' });
+    return res.status(500).json({ 
+      message: 'Server error',
+      details: error.message || 'Unknown error occurred during upload'
+    });
   }
 });
 
@@ -109,12 +130,29 @@ router.get('/api/healthcheck', async (req, res) => {
       default: dbStatus = 'Unknown';
     }
 
+    // Try to reconnect if not connected
+    if (dbState !== 1) {
+      try {
+        const MONGODB_URI = process.env.MONGODB || 'mongodb+srv://fangscript:shani1319@cluster0.ug4pojo.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
+        await mongoose.connect(MONGODB_URI, {
+          useNewUrlParser: true,
+          useUnifiedTopology: true,
+          serverSelectionTimeoutMS: 5000 // Fast timeout for health check
+        });
+        console.log('Reconnection attempt successful in healthcheck');
+      } catch (e) {
+        console.log('Reconnection attempt failed in healthcheck:', e.message);
+      }
+    }
+
     return res.status(200).json({
       status: 'ok',
       timestamp: new Date(),
       environment: process.env.NODE_ENV || 'development',
       database: {
-        status: dbStatus,
+        status: mongoose.connection.readyState === 1 ? 'Connected' : 
+               mongoose.connection.readyState === 2 ? 'Connecting' : 
+               mongoose.connection.readyState === 0 ? 'Disconnected' : 'Unknown',
         name: mongoose.connection.name || 'Not connected'
       }
     });
