@@ -2,9 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import './ImageUploader.css';
 
-// Use Vercel deployment URL instead of localhost
-const API_URL = 'https://url-to-image-qvplv45ls-fangscripts-projects.vercel.app';
-
+// Use relative paths for API endpoints
 const ImageUploader = () => {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -35,7 +33,8 @@ const ImageUploader = () => {
       const formData = new FormData();
       formData.append('image', file);
 
-      const response = await axios.post(`${API_URL}/api/upload`, formData, {
+      // Use relative URL
+      const response = await axios.post('/api/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -50,6 +49,10 @@ const ImageUploader = () => {
       setUploading(false);
       console.error('Upload error:', err);
     }
+  };
+
+  const getFullImageUrl = (path) => {
+    return window.location.origin + path;
   };
 
   return (
@@ -93,19 +96,19 @@ const ImageUploader = () => {
           <div className="url-container">
             <input 
               type="text" 
-              value={`${API_URL}${uploadedImage.imageUrl}`}
+              value={getFullImageUrl(uploadedImage.imageUrl)}
               readOnly
               className="url-input"
             />
             <button
-              onClick={() => navigator.clipboard.writeText(`${API_URL}${uploadedImage.imageUrl}`)}
+              onClick={() => navigator.clipboard.writeText(getFullImageUrl(uploadedImage.imageUrl))}
               className="copy-button"
             >
               Copy
             </button>
           </div>
           <img 
-            src={`${API_URL}${uploadedImage.imageUrl}`} 
+            src={uploadedImage.imageUrl} 
             alt="Uploaded" 
             className="uploaded-image"
           />
