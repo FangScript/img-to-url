@@ -13,6 +13,12 @@ const ImageUploader = () => {
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
+      // Check file size (limit to 5MB)
+      if (selectedFile.size > 5 * 1024 * 1024) {
+        setError('File size exceeds 5MB limit. Please choose a smaller file.');
+        return;
+      }
+      
       setFile(selectedFile);
       setPreview(URL.createObjectURL(selectedFile));
       setError('');
@@ -33,21 +39,42 @@ const ImageUploader = () => {
       const formData = new FormData();
       formData.append('image', file);
 
+      console.log('Uploading file:', file.name, file.type, file.size);
+
       // Use relative URL
       const response = await axios.post('/api/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
+        timeout: 30000 // 30 second timeout
       });
 
+      console.log('Upload response:', response.data);
       setUploadedImage(response.data);
       setUploading(false);
       setFile(null);
       setPreview(null);
     } catch (err) {
-      setError('Error uploading image. Please try again.');
+      console.error('Upload error details:', err);
+      
+      let errorMessage = 'Error uploading image. Please try again.';
+      
+      if (err.response) {
+        // The server responded with an error status
+        console.error('Server error response:', err.response.data);
+        errorMessage = err.response.data.details || err.response.data.message || errorMessage;
+      } else if (err.request) {
+        // The request was made but no response was received
+        console.error('No response received:', err.request);
+        errorMessage = 'Server did not respond. Please check your connection.';
+      } else {
+        // Something happened in setting up the request
+        console.error('Request setup error:', err.message);
+        errorMessage = err.message || errorMessage;
+      }
+      
+      setError(errorMessage);
       setUploading(false);
-      console.error('Upload error:', err);
     }
   };
 

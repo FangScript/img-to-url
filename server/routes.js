@@ -48,24 +48,43 @@ const upload = multer({
 // Upload route with additional error handling
 router.post('/api/upload', ensureConnection, upload.single('image'), async (req, res) => {
   try {
+    console.log('Upload request received');
+    
     if (!req.file) {
+      console.log('No file in request');
       return res.status(400).json({ message: 'No file uploaded' });
     }
+    
+    console.log(`File received: ${req.file.originalname}, size: ${req.file.size} bytes`);
 
     // Check database connection again
     if (mongoose.connection.readyState !== 1) {
-      return res.status(500).json({ 
-        message: 'Database connection not ready',
-        details: 'Please try again in a moment'
-      });
+      console.log('MongoDB not connected, attempting reconnection');
+      try {
+        const MONGODB_URI = process.env.MONGODB || 'mongodb+srv://fangscript:shani1319@cluster0.ug4pojo.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
+        await mongoose.connect(MONGODB_URI, {
+          useNewUrlParser: true,
+          useUnifiedTopology: true,
+          serverSelectionTimeoutMS: 10000
+        });
+        console.log('Reconnection successful');
+      } catch (connErr) {
+        console.error('Reconnection failed:', connErr);
+        return res.status(500).json({ 
+          message: 'Database connection not ready',
+          details: 'Please try again in a moment'
+        });
+      }
     }
 
+    console.log('Creating new image document');
     const newImage = new Image({
       filename: req.file.originalname,
       contentType: req.file.mimetype,
       data: req.file.buffer
     });
 
+    console.log('Saving image to database');
     await newImage.save();
 
     // Create URL for the image
@@ -73,6 +92,7 @@ router.post('/api/upload', ensureConnection, upload.single('image'), async (req,
     newImage.imageUrl = imageUrl;
     await newImage.save();
 
+    console.log('Image saved successfully with ID:', newImage._id);
     return res.status(201).json({ 
       message: 'Image uploaded successfully',
       imageUrl: imageUrl,
@@ -80,6 +100,7 @@ router.post('/api/upload', ensureConnection, upload.single('image'), async (req,
     });
   } catch (error) {
     console.error('Error uploading image:', error);
+    // Send more detailed error information
     return res.status(500).json({ 
       message: 'Server error',
       details: error.message || 'Unknown error occurred during upload'

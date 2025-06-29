@@ -7,7 +7,7 @@
       "use": "@vercel/node"
     },
     {
-      "src": "api/*.js",
+      "src": "api/**/*.js",
       "use": "@vercel/node"
     },
     {
@@ -19,6 +19,16 @@
     {
       "src": "/api/health",
       "dest": "/api/health.js"
+    },
+    {
+      "src": "/api/upload",
+      "dest": "/api/upload.js",
+      "methods": ["POST", "OPTIONS"]
+    },
+    {
+      "src": "/api/images/([^/]+)",
+      "dest": "/api/images/[id].js?id=$1",
+      "methods": ["GET", "OPTIONS"]
     },
     {
       "src": "/api/(.*)",

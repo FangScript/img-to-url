@@ -20,6 +20,15 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Improved error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Global error handler caught:', err);
+  res.status(500).json({
+    message: 'Server error',
+    details: err.message || 'Unknown error'
+  });
+});
+
 // Serve static files from the React app
 app.use(express.static(path.join(__dirname, 'public'), {
   setHeaders: (res, path) => {
@@ -30,24 +39,15 @@ app.use(express.static(path.join(__dirname, 'public'), {
   }
 }));
 
-// Connect to MongoDB with improved options
-mongoose.connect(MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-  serverSelectionTimeoutMS: 30000, // 30 seconds
-  socketTimeoutMS: 45000, // 45 seconds
-  family: 4, // Use IPv4, skip trying IPv6
-  maxPoolSize: 10, // Maintain up to 10 socket connections
-  connectTimeoutMS: 30000, // Give up initial connection after 30 seconds
-  retryWrites: true
-})
-  .then(() => console.log('Connected to MongoDB'))
-  .catch(err => console.error('MongoDB connection error:', err));
-
-// Force database connection before starting app
-const connectDB = async () => {
-  try {
-    if (mongoose.connection.readyState !== 1) {
+// Enhanced MongoDB connection with retry logic
+const connectWithRetry = async (retries = 5, interval = 5000) => {
+  let currentTry = 0;
+  
+  const tryConnect = async () => {
+    try {
+      currentTry++;
+      console.log(`MongoDB connection attempt ${currentTry} of ${retries}`);
+      
       await mongoose.connect(MONGODB_URI, {
         useNewUrlParser: true,
         useUnifiedTopology: true,
@@ -58,16 +58,44 @@ const connectDB = async () => {
         connectTimeoutMS: 30000,
         retryWrites: true
       });
-      console.log('Database connection forced and established');
+      
+      console.log('Connected to MongoDB successfully!');
+      
+      // Set up connection error handler
+      mongoose.connection.on('error', (err) => {
+        console.error('MongoDB connection error:', err);
+        if (mongoose.connection.readyState !== 1) {
+          console.log('Connection lost, attempting to reconnect...');
+          setTimeout(() => tryConnect(), interval);
+        }
+      });
+      
+      // Set up disconnection handler
+      mongoose.connection.on('disconnected', () => {
+        console.log('MongoDB disconnected, attempting to reconnect...');
+        setTimeout(() => tryConnect(), interval);
+      });
+      
+      return true;
+    } catch (error) {
+      console.error('MongoDB connection error:', error);
+      
+      if (currentTry < retries) {
+        console.log(`Retrying in ${interval/1000} seconds...`);
+        await new Promise(resolve => setTimeout(resolve, interval));
+        return tryConnect();
+      } else {
+        console.error(`Failed to connect after ${retries} attempts`);
+        return false;
+      }
     }
-  } catch (error) {
-    console.error('Force connect to MongoDB failed:', error);
-    // Don't throw error - let app start anyway
-  }
+  };
+  
+  return tryConnect();
 };
 
-// Call the connect function
-connectDB();
+// Initialize connection
+connectWithRetry();
 
 // API Routes
 app.use(routes);
@@ -77,7 +105,7 @@ app.get('/api/health', async (req, res) => {
   // Attempt reconnection if not connected
   if (mongoose.connection.readyState !== 1) {
     try {
-      await connectDB();
+      await connectWithRetry(1, 1000);
     } catch (err) {
       console.error('Failed to reconnect during health check:', err);
     }
