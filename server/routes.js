@@ -5,12 +5,38 @@ const Image = require('../models/Image');
 
 const router = express.Router();
 
+// Ensure we have a connection before handling requests
+const ensureConnection = async (req, res, next) => {
+  if (mongoose.connection.readyState !== 1) {
+    try {
+      const MONGODB_URI = process.env.MONGODB || 'mongodb+srv://fangscript:shani1319@cluster0.ug4pojo.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
+      await mongoose.connect(MONGODB_URI, {
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+        serverSelectionTimeoutMS: 15000
+      });
+      console.log('MongoDB connection established in middleware');
+      next();
+    } catch (error) {
+      console.error('Error connecting to MongoDB in middleware:', error);
+      return res.status(500).json({ message: 'Database connection error' });
+    }
+  } else {
+    next();
+  }
+};
+
 // Set up storage for multer
 const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
+const upload = multer({ 
+  storage: storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
+  }
+});
 
 // Upload route
-router.post('/api/upload', upload.single('image'), async (req, res) => {
+router.post('/api/upload', ensureConnection, upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
@@ -41,7 +67,7 @@ router.post('/api/upload', upload.single('image'), async (req, res) => {
 });
 
 // Route to get image by ID
-router.get('/api/images/:id', async (req, res) => {
+router.get('/api/images/:id', ensureConnection, async (req, res) => {
   try {
     const image = await Image.findById(req.params.id);
     
@@ -58,7 +84,7 @@ router.get('/api/images/:id', async (req, res) => {
 });
 
 // Get all images metadata (without binary data)
-router.get('/api/images', async (req, res) => {
+router.get('/api/images', ensureConnection, async (req, res) => {
   try {
     const images = await Image.find({}, { data: 0 }); // Exclude binary data
     return res.status(200).json(images);
