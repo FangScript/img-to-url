@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "public": true,
   "builds": [
     {
       "src": "server.js",
@@ -12,16 +13,31 @@
   ],
   "routes": [
     {
-      "src": "/manifest.json",
-      "dest": "/public/manifest.json",
+      "src": "/api/(.*)",
+      "dest": "/server.js",
+      "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
       "headers": {
-        "Cache-Control": "public, max-age=0, must-revalidate",
-        "Access-Control-Allow-Origin": "*"
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept",
+        "Access-Control-Allow-Credentials": "true"
       }
     },
     {
-      "src": "/api/(.*)",
-      "dest": "server.js"
+      "src": "/manifest.json",
+      "dest": "/public/manifest.json",
+      "headers": {
+        "content-type": "application/json",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "access-control-allow-origin": "*"
+      }
+    },
+    {
+      "src": "/favicon.ico",
+      "dest": "/public/favicon.ico"
+    },
+    {
+      "src": "/static/(.*)",
+      "dest": "/public/static/$1"
     },
     {
       "src": "/(.*)",
